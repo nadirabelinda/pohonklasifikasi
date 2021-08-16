@@ -1,0 +1,99 @@
+---
+title: "Tugas1fix"
+author: "Nadira Sri Belinda"
+date: "12/9/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### POHON KLASIFIKASI
+```{r}
+#Import data
+library(readr)
+data_tugas_xy <- read_csv("D:/1. Kuliah S2 (STATISTIKA DAN SAINS DATA)/Materi Kuliah/SEMESTER 1/4. Sains Data/Pertemuan 12/Tugas ppt dan csv/data tugas xy.csv")
+
+data <- data_tugas_xy
+data1 <- subset(data, select=-c(nomor))
+x<-subset(data, select=-c(nomor,Tekanan))
+colnames(x)
+data.frame("total.data" = dim(x)[1],
+           "total.variabel" = dim(x)[2])
+
+
+data_prediksi <- read_csv("D:/1. Kuliah S2 (STATISTIKA DAN SAINS DATA)/Materi Kuliah/SEMESTER 1/4. Sains Data/Pertemuan 12/Tugas ppt dan csv/data prediksi.csv")
+
+data_prediksi1 <- subset(data_prediksi, select=-c(nomor))
+
+```
+
+```{r}
+# Optimasi Hyperparameter
+library(caret)
+library(rpart)
+set.seed(100)
+akurasi.semua <- NULL
+
+for(ulangan in 1:30){
+  acak <- createDataPartition(data1$Tekanan, p=0.7, list=FALSE)
+  data.training <- data1[acak,]
+  data.testing <- data1[-acak,]
+  
+  for (k in 50:75){
+    pohon <- rpart(Tekanan ~ ., 
+                   data=data.training,
+                   method='class',
+                   control=rpart.control(minsplit = k, cp=0))
+    prediksi.prob <- predict(pohon, data.testing)
+    prediksi <- ifelse(prediksi.prob > 0.5, "1", "0")[,2]
+    akurasi <- mean(prediksi == data.testing$Tekanan)
+    akurasi.semua <- rbind(akurasi.semua, c(k, akurasi))
+  }
+}
+mean.akurasi <- tapply(akurasi.semua[,2], akurasi.semua[,1], mean)
+plot(names(mean.akurasi),mean.akurasi, type="b", xlab="minsplit", ylab="rata-rata akurasi data testing")
+
+```
+
+Menggunakan rata-rata dari 30 kali ulangan, diperoleh minsplit yang optimal adalah 75. Karenanya untuk memperoleh model akhir selanjutnya digunakan minsplit = 75.
+
+```{r}
+# Membuat model
+library(rpart)
+pohon <- rpart(Tekanan~.,
+               data=data1, method='class',
+               control=rpart.control(minsplit = 75, cp=0))
+pohon
+
+# Menggambar pohon klasifikasi
+library(rpart.plot)
+rpart.plot(pohon, extra=4,box.palette="RdBu", shadow.col="gray", nn=TRUE)
+```
+
+```{r}
+prediksi.prob <- predict(pohon, data.testing)
+prediksi.prob<-ifelse(prediksi.prob== -1, "0", "1")
+akurasi <- mean(prediksi.prob == datatesting$Tekanan)
+akurasi
+```
+
+
+```{r}
+# Melakukan prediksi
+hasil1 <- predict (pohon, data_prediksi1)
+View(hasil1)
+hasilpk <- data.frame(hasil1)
+colnames(hasilpk)[colnames(hasilpk)=="X0"] = "0"
+colnames(hasilpk)[colnames(hasilpk)=="X1"] = "1"
+
+hasilpk$Hasil <- ifelse(hasilpk[1]>hasilpk[2],"0","1")
+hasilpk
+View(hasilpk)
+```
+
+```{r}
+write.csv(hasilpk, "hasilpohonklasifikas5075.csv")
+```
+
